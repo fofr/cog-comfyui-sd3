@@ -10,7 +10,6 @@ from cog import BasePredictor, Input, Path
 from comfyui import ComfyUI
 from cog_model_helpers import optimise_images
 from cog_model_helpers import seed as seed_helper
-from comfyui_enums import SAMPLERS, SCHEDULERS
 
 OUTPUT_DIR = "/tmp/outputs"
 INPUT_DIR = "/tmp/inputs"
@@ -64,18 +63,31 @@ class Predictor(BasePredictor):
 
         image.save(os.path.join(INPUT_DIR, filename))
 
-    # Update nodes in the JSON workflow to modify your workflow based on the given inputs
+    def aspect_ratio_to_width_height(self, aspect_ratio: str):
+        aspect_ratios = {
+            "1:1": (1024, 1024),
+            "16:9": (1344, 768),
+            "21:9": (1536, 640),
+            "3:2": (1216, 832),
+            "2:3": (832, 1216),
+            "4:5": (896, 1088),
+            "5:4": (1088, 896),
+            "9:16": (768, 1344),
+            "9:21": (640, 1536),
+        }
+        return aspect_ratios.get(aspect_ratio)
+
     def update_workflow(self, workflow, **kwargs):
         positive_prompt = workflow["6"]["inputs"]
         positive_prompt["text"] = kwargs["prompt"]
         negative_prompt = workflow["71"]["inputs"]
-        negative_prompt["text"] = f"nsfw, {kwargs['negative_prompt']}"
+        negative_prompt["text"] = kwargs["negative_prompt"]
         sampler = workflow["271"]["inputs"]
         sampler["seed"] = kwargs["seed"]
-        sampler["steps"] = kwargs["steps"]
         sampler["cfg"] = kwargs["cfg"]
-        sampler["sampler_name"] = kwargs["sampler_name"]
-        sampler["scheduler"] = kwargs["scheduler"]
+        empty_latent_image = workflow["135"]["inputs"]
+        empty_latent_image["width"] = kwargs["width"]
+        empty_latent_image["height"] = kwargs["height"]
 
     def predict(
         self,
@@ -86,23 +98,15 @@ class Predictor(BasePredictor):
             description="Things you do not want to see in your image",
             default="",
         ),
-        steps: int = Input(
-            le=50,
-            ge=1,
-            default=28,
+        aspect_ratio: str = Input(
+            choices=["1:1", "16:9", "21:9", "2:3", "3:2", "4:5", "5:4", "9:16", "9:21"],
+            default="1:1",
         ),
         cfg: float = Input(
+            description="The guidance scale tells the model how similar the output should be to the prompt.",
             le=20,
             ge=0,
             default=4.5,
-        ),
-        sampler_name: str = Input(
-            choices=SAMPLERS,
-            default="dpmpp_2m",
-        ),
-        scheduler: str = Input(
-            choices=SCHEDULERS,
-            default="sgm_uniform",
         ),
         output_format: str = optimise_images.predict_output_format(),
         output_quality: int = optimise_images.predict_output_quality(),
@@ -115,15 +119,16 @@ class Predictor(BasePredictor):
         with open(api_json_file, "r") as file:
             workflow = json.loads(file.read())
 
+        width, height = self.aspect_ratio_to_width_height(aspect_ratio)
+
         self.update_workflow(
             workflow,
             prompt=prompt,
             negative_prompt=negative_prompt,
             seed=seed,
-            steps=steps,
             cfg=cfg,
-            sampler_name=sampler_name,
-            scheduler=scheduler,
+            width=width,
+            height=height,
         )
 
         wf = self.comfyUI.load_workflow(workflow)
