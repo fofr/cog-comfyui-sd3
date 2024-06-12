@@ -10,6 +10,7 @@ from cog import BasePredictor, Input, Path
 from comfyui import ComfyUI
 from cog_model_helpers import optimise_images
 from cog_model_helpers import seed as seed_helper
+from comfyui_enums import SAMPLERS, SCHEDULERS
 
 OUTPUT_DIR = "/tmp/outputs"
 INPUT_DIR = "/tmp/inputs"
@@ -65,17 +66,16 @@ class Predictor(BasePredictor):
 
     # Update nodes in the JSON workflow to modify your workflow based on the given inputs
     def update_workflow(self, workflow, **kwargs):
-        # Below is an example showing how to get the node you need and update the inputs
-
-        # positive_prompt = workflow["6"]["inputs"]
-        # positive_prompt["text"] = kwargs["prompt"]
-
-        # negative_prompt = workflow["7"]["inputs"]
-        # negative_prompt["text"] = f"nsfw, {kwargs['negative_prompt']}"
-
-        # sampler = workflow["3"]["inputs"]
-        # sampler["seed"] = kwargs["seed"]
-        pass
+        positive_prompt = workflow["6"]["inputs"]
+        positive_prompt["text"] = kwargs["prompt"]
+        negative_prompt = workflow["71"]["inputs"]
+        negative_prompt["text"] = f"nsfw, {kwargs['negative_prompt']}"
+        sampler = workflow["271"]["inputs"]
+        sampler["seed"] = kwargs["seed"]
+        sampler["steps"] = kwargs["steps"]
+        sampler["cfg"] = kwargs["cfg"]
+        sampler["sampler_name"] = kwargs["sampler_name"]
+        sampler["scheduler"] = kwargs["scheduler"]
 
     def predict(
         self,
@@ -86,9 +86,23 @@ class Predictor(BasePredictor):
             description="Things you do not want to see in your image",
             default="",
         ),
-        image: Path = Input(
-            description="An input image",
-            default=None,
+        steps: int = Input(
+            le=50,
+            ge=1,
+            default=28,
+        ),
+        cfg: float = Input(
+            le=20,
+            ge=0,
+            default=4.5,
+        ),
+        sampler_name: str = Input(
+            choices=SAMPLERS,
+            default="dpmpp_2m",
+        ),
+        scheduler: str = Input(
+            choices=SCHEDULERS,
+            default="sgm_uniform",
         ),
         output_format: str = optimise_images.predict_output_format(),
         output_quality: int = optimise_images.predict_output_quality(),
@@ -96,12 +110,7 @@ class Predictor(BasePredictor):
     ) -> List[Path]:
         """Run a single prediction on the model"""
         self.comfyUI.cleanup(ALL_DIRECTORIES)
-
-        # Make sure to set the seeds in your workflow
         seed = seed_helper.generate(seed)
-
-        if image:
-            self.handle_input_file(image)
 
         with open(api_json_file, "r") as file:
             workflow = json.loads(file.read())
@@ -111,6 +120,10 @@ class Predictor(BasePredictor):
             prompt=prompt,
             negative_prompt=negative_prompt,
             seed=seed,
+            steps=steps,
+            cfg=cfg,
+            sampler_name=sampler_name,
+            scheduler=scheduler,
         )
 
         wf = self.comfyUI.load_workflow(workflow)
