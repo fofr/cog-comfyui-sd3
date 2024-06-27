@@ -11,15 +11,13 @@ from cog import BasePredictor, Input, Path
 from comfyui import ComfyUI
 from cog_model_helpers import optimise_images
 from cog_model_helpers import seed as seed_helper
+from weights_downloader import WeightsDownloader
 
 OUTPUT_DIR = "/tmp/outputs"
 INPUT_DIR = "/tmp/inputs"
 COMFYUI_TEMP_OUTPUT_DIR = "ComfyUI/temp"
 ALL_DIRECTORIES = [OUTPUT_DIR, INPUT_DIR, COMFYUI_TEMP_OUTPUT_DIR]
-
 mimetypes.add_type("image/webp", ".webp")
-
-# Save your example JSON to the same directory as predict.py
 api_json_file = "workflow_api.json"
 
 aspect_ratios = {
@@ -40,12 +38,11 @@ class Predictor(BasePredictor):
         self.comfyUI = ComfyUI("127.0.0.1:8188")
         self.comfyUI.start_server(OUTPUT_DIR, INPUT_DIR)
 
-        # Give a list of weights filenames to download during setup
-        with open(api_json_file, "r") as file:
-            workflow = json.loads(file.read())
-        self.comfyUI.handle_weights(
-            workflow,
-            weights_to_download=[],
+        weights_downloader = WeightsDownloader()
+        weights_downloader.download(
+            "sd3_medium_incl_clips_t5xxlfp8.safetensors",
+            "https://weights.replicate.delivery/default/comfy-ui/checkpoints/sd3_medium_incl_clips_t5xxlfp8.safetensors.tar",
+            "ComfyUI/models/checkpoints",
         )
 
     def handle_input_file(
@@ -54,9 +51,6 @@ class Predictor(BasePredictor):
         filename: str = "image.png",
     ):
         shutil.copy(input_file, os.path.join(INPUT_DIR, filename))
-
-    def aspect_ratio_to_width_height(self, aspect_ratio: str):
-        return aspect_ratios.get(aspect_ratio)
 
     def update_workflow(self, workflow, **kwargs):
         positive_prompt = workflow["6"]["inputs"]
@@ -103,7 +97,7 @@ class Predictor(BasePredictor):
             default="",
         ),
         aspect_ratio: str = Input(
-            choices=["1:1", "16:9", "21:9", "2:3", "3:2", "4:5", "5:4", "9:16", "9:21"],
+            choices=list(aspect_ratios.keys()),
             default="1:1",
             description="The aspect ratio of your output image. This value is ignored if you are using an input image.",
         ),
@@ -144,7 +138,7 @@ class Predictor(BasePredictor):
         with open(api_json_file, "r") as file:
             workflow = json.loads(file.read())
 
-        width, height = self.aspect_ratio_to_width_height(aspect_ratio)
+        width, height = aspect_ratios.get(aspect_ratio)
 
         if image:
             file_extension = os.path.splitext(image)[1].lower()

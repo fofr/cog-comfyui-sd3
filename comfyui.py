@@ -7,25 +7,18 @@ import json
 import urllib
 import uuid
 import websocket
-import random
-import requests
 import shutil
-import custom_node_helpers as helpers
 from cog import Path
-from node import Node
-from weights_downloader import WeightsDownloader
 from urllib.error import URLError
 
 
 class ComfyUI:
     def __init__(self, server_address):
-        self.weights_downloader = WeightsDownloader()
         self.server_address = server_address
 
     def start_server(self, output_directory, input_directory):
         self.input_directory = input_directory
         self.output_directory = output_directory
-        self.apply_helper_methods("prepare", weights_downloader=self.weights_downloader)
 
         start_time = time.time()
         server_thread = threading.Thread(
@@ -53,87 +46,6 @@ class ComfyUI:
                 return response.status == 200
         except URLError:
             return False
-
-    def apply_helper_methods(self, method_name, *args, **kwargs):
-        # Dynamically applies a method from helpers module with given args.
-        # Example usage: self.apply_helper_methods("add_weights", weights_to_download, node)
-        for module_name in dir(helpers):
-            module = getattr(helpers, module_name)
-            method = getattr(module, method_name, None)
-            if callable(method):
-                method(*args, **kwargs)
-
-    def handle_weights(self, workflow, weights_to_download=[]):
-        print("Checking weights")
-        embeddings = self.weights_downloader.get_weights_by_type("EMBEDDINGS")
-        embedding_to_fullname = {emb.split(".")[0]: emb for emb in embeddings}
-        weights_filetypes = self.weights_downloader.supported_filetypes
-
-        for node in workflow.values():
-            self.apply_helper_methods("add_weights", weights_to_download, Node(node))
-
-            for input in node["inputs"].values():
-                if isinstance(input, str):
-                    if any(key in input for key in embedding_to_fullname):
-                        weights_to_download.extend(
-                            embedding_to_fullname[key]
-                            for key in embedding_to_fullname
-                            if key in input
-                        )
-                    elif any(input.endswith(ft) for ft in weights_filetypes):
-                        weights_to_download.append(input)
-
-        weights_to_download = list(set(weights_to_download))
-
-        for weight in weights_to_download:
-            self.weights_downloader.download_weights(weight)
-
-        print("====================================")
-
-    def is_image_or_video_value(self, value):
-        filetypes = [".png", ".jpg", ".jpeg", ".webp", ".mp4", ".webm"]
-        return isinstance(value, str) and any(
-            value.lower().endswith(ft) for ft in filetypes
-        )
-
-    def handle_known_unsupported_nodes(self, workflow):
-        for node in workflow.values():
-            self.apply_helper_methods("check_for_unsupported_nodes", Node(node))
-
-    def handle_inputs(self, workflow):
-        print("Checking inputs")
-        seen_inputs = set()
-        for node in workflow.values():
-            if "inputs" in node:
-                for input_key, input_value in node["inputs"].items():
-                    if isinstance(input_value, str) and input_value not in seen_inputs:
-                        seen_inputs.add(input_value)
-                        if input_value.startswith(("http://", "https://")):
-                            filename = os.path.join(
-                                self.input_directory, os.path.basename(input_value)
-                            )
-                            if not os.path.exists(filename):
-                                print(f"Downloading {input_value} to {filename}")
-                                try:
-                                    response = requests.get(input_value)
-                                    response.raise_for_status()
-                                    with open(filename, "wb") as file:
-                                        file.write(response.content)
-                                    node["inputs"][input_key] = filename
-                                    print(f"✅ {filename}")
-                                except requests.exceptions.RequestException as e:
-                                    print(f"❌ Error downloading {input_value}: {e}")
-
-                        elif self.is_image_or_video_value(input_value):
-                            filename = os.path.join(
-                                self.input_directory, os.path.basename(input_value)
-                            )
-                            if not os.path.exists(filename):
-                                print(f"❌ {filename} not provided")
-                            else:
-                                print(f"✅ {filename}")
-
-        print("====================================")
 
     def connect(self):
         self.client_id = str(uuid.uuid4())
@@ -194,43 +106,6 @@ class ComfyUI:
                         )
             else:
                 continue
-
-    def load_workflow(self, workflow):
-        if not isinstance(workflow, dict):
-            wf = json.loads(workflow)
-        else:
-            wf = workflow
-
-        # There are two types of ComfyUI JSON
-        # We need the API version
-        if any(key in wf.keys() for key in ["last_node_id", "last_link_id", "version"]):
-            raise ValueError(
-                "You need to use the API JSON version of a ComfyUI workflow. To do this go to your ComfyUI settings and turn on 'Enable Dev mode Options'. Then you can save your ComfyUI workflow via the 'Save (API Format)' button."
-            )
-
-        self.handle_known_unsupported_nodes(wf)
-        self.handle_inputs(wf)
-        self.handle_weights(wf)
-        return wf
-
-    def reset_execution_cache(self):
-        print("Resetting execution cache")
-        with open("reset.json", "r") as file:
-            reset_workflow = json.loads(file.read())
-        self.queue_prompt(reset_workflow)
-
-    def randomise_input_seed(self, input_key, inputs):
-        if input_key in inputs and isinstance(inputs[input_key], (int, float)):
-            new_seed = random.randint(0, 2**32 - 1)
-            print(f"Randomising {input_key} to {new_seed}")
-            inputs[input_key] = new_seed
-
-    def randomise_seeds(self, workflow):
-        for node_id, node in workflow.items():
-            inputs = node.get("inputs", {})
-            seed_keys = ["seed", "noise_seed", "rand_seed"]
-            for seed_key in seed_keys:
-                self.randomise_input_seed(seed_key, inputs)
 
     def run_workflow(self, workflow):
         print("Running workflow")
