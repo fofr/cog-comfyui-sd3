@@ -4,6 +4,7 @@
 import os
 import mimetypes
 import json
+import shutil
 from PIL import Image, ExifTags
 from typing import List
 from cog import BasePredictor, Input, Path
@@ -39,29 +40,8 @@ class Predictor(BasePredictor):
         self,
         input_file: Path,
         filename: str = "image.png",
-        check_orientation: bool = True,
     ):
-        image = Image.open(input_file)
-
-        if check_orientation:
-            try:
-                for orientation in ExifTags.TAGS.keys():
-                    if ExifTags.TAGS[orientation] == "Orientation":
-                        break
-                exif = dict(image._getexif().items())
-
-                if exif[orientation] == 3:
-                    image = image.rotate(180, expand=True)
-                elif exif[orientation] == 6:
-                    image = image.rotate(270, expand=True)
-                elif exif[orientation] == 8:
-                    image = image.rotate(90, expand=True)
-            except (KeyError, AttributeError):
-                # EXIF data does not have orientation
-                # Do not rotate
-                pass
-
-        image.save(os.path.join(INPUT_DIR, filename))
+        shutil.copy(input_file, os.path.join(INPUT_DIR, filename))
 
     def aspect_ratio_to_width_height(self, aspect_ratio: str):
         aspect_ratios = {
@@ -80,22 +60,32 @@ class Predictor(BasePredictor):
     def update_workflow(self, workflow, **kwargs):
         positive_prompt = workflow["6"]["inputs"]
         positive_prompt["text"] = kwargs["prompt"]
+
         negative_prompt = workflow["71"]["inputs"]
         negative_prompt["text"] = kwargs["negative_prompt"]
+
         sampler = workflow["271"]["inputs"]
         sampler["seed"] = kwargs["seed"]
         sampler["cfg"] = kwargs["cfg"]
-        empty_latent_image = workflow["135"]["inputs"]
-        empty_latent_image["width"] = kwargs["width"]
-        empty_latent_image["height"] = kwargs["height"]
+
+        if kwargs["image_filename"]:
+            load_image = workflow["275"]
+            load_image["inputs"]["image"] = kwargs["image_filename"]
+
+            sampler["denoise"] = kwargs["prompt_strength"]
+        else:
+            sampler["denoise"] = 1
+            sampler["latent_image"] = ["135", 0]
+            empty_latent_image = workflow["135"]["inputs"]
+            empty_latent_image["width"] = kwargs["width"]
+            empty_latent_image["height"] = kwargs["height"]
+            del workflow["275"]  # remove the load image node
+            del workflow["277"]  # remove the image resize node
+            del workflow["278"]  # remove the VAE encode node
 
     def predict(
         self,
         prompt: str = Input(
-            default="",
-        ),
-        negative_prompt: str = Input(
-            description="Things you do not want to see in your image",
             default="",
         ),
         aspect_ratio: str = Input(
@@ -106,11 +96,25 @@ class Predictor(BasePredictor):
             description="The guidance scale tells the model how similar the output should be to the prompt.",
             le=20,
             ge=0,
-            default=4.5,
+            default=3.5,
+        ),
+        image: Path = Input(
+            description="Input image for image to image mode",
+            default=None,
+        ),
+        prompt_strength: float = Input(
+            description="Prompt strength (or denoising strength) when using image to image. 1.0 corresponds to full destruction of information in image.",
+            ge=0.0,
+            le=1.0,
+            default=0.6,
         ),
         output_format: str = optimise_images.predict_output_format(),
         output_quality: int = optimise_images.predict_output_quality(),
         seed: int = seed_helper.predict_seed(),
+        negative_prompt: str = Input(
+            description="Negative prompts do not really work in SD3. Using a negative prompt will change your output in unpredictable ways.",
+            default="",
+        ),
     ) -> List[Path]:
         """Run a single prediction on the model"""
         self.comfyUI.cleanup(ALL_DIRECTORIES)
@@ -121,6 +125,13 @@ class Predictor(BasePredictor):
 
         width, height = self.aspect_ratio_to_width_height(aspect_ratio)
 
+        if image:
+            file_extension = os.path.splitext(image)[1].lower()
+            image_filename = f"input{file_extension}"
+            self.handle_input_file(image, image_filename)
+        else:
+            image_filename = None
+
         self.update_workflow(
             workflow,
             prompt=prompt,
@@ -129,6 +140,8 @@ class Predictor(BasePredictor):
             cfg=cfg,
             width=width,
             height=height,
+            prompt_strength=prompt_strength,
+            image_filename=image_filename,
         )
 
         self.comfyUI.connect()
