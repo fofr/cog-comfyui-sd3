@@ -5,7 +5,7 @@ import os
 import mimetypes
 import json
 import shutil
-from PIL import Image, ExifTags
+from PIL import Image
 from typing import List
 from cog import BasePredictor, Input, Path
 from comfyui import ComfyUI
@@ -21,6 +21,18 @@ mimetypes.add_type("image/webp", ".webp")
 
 # Save your example JSON to the same directory as predict.py
 api_json_file = "workflow_api.json"
+
+aspect_ratios = {
+    "1:1": (1024, 1024),
+    "16:9": (1344, 768),
+    "21:9": (1536, 640),
+    "3:2": (1216, 832),
+    "2:3": (832, 1216),
+    "4:5": (896, 1088),
+    "5:4": (1088, 896),
+    "9:16": (768, 1344),
+    "9:21": (640, 1536),
+}
 
 
 class Predictor(BasePredictor):
@@ -44,17 +56,6 @@ class Predictor(BasePredictor):
         shutil.copy(input_file, os.path.join(INPUT_DIR, filename))
 
     def aspect_ratio_to_width_height(self, aspect_ratio: str):
-        aspect_ratios = {
-            "1:1": (1024, 1024),
-            "16:9": (1344, 768),
-            "21:9": (1536, 640),
-            "3:2": (1216, 832),
-            "2:3": (832, 1216),
-            "4:5": (896, 1088),
-            "5:4": (1088, 896),
-            "9:16": (768, 1344),
-            "9:21": (640, 1536),
-        }
         return aspect_ratios.get(aspect_ratio)
 
     def update_workflow(self, workflow, **kwargs):
@@ -71,8 +72,20 @@ class Predictor(BasePredictor):
         if kwargs["image_filename"]:
             load_image = workflow["275"]
             load_image["inputs"]["image"] = kwargs["image_filename"]
-
             sampler["denoise"] = kwargs["prompt_strength"]
+
+            with Image.open(os.path.join(INPUT_DIR, kwargs["image_filename"])) as img:
+                original_width, original_height = img.size
+
+            input_aspect_ratio = original_width / original_height
+            closest_ratio = min(
+                aspect_ratios.items(),
+                key=lambda x: abs(x[1][0] / x[1][1] - input_aspect_ratio),
+            )
+
+            kwargs["width"], kwargs["height"] = closest_ratio[1]
+            workflow["277"]["inputs"]["width"] = kwargs["width"]
+            workflow["277"]["inputs"]["height"] = kwargs["height"]
         else:
             sampler["denoise"] = 1
             sampler["latent_image"] = ["135", 0]
@@ -99,14 +112,14 @@ class Predictor(BasePredictor):
             default=3.5,
         ),
         image: Path = Input(
-            description="Input image for image to image mode",
+            description="Input image for image to image mode. The aspect ratio of your output will match this image.",
             default=None,
         ),
         prompt_strength: float = Input(
             description="Prompt strength (or denoising strength) when using image to image. 1.0 corresponds to full destruction of information in image.",
             ge=0.0,
             le=1.0,
-            default=0.6,
+            default=0.85,
         ),
         output_format: str = optimise_images.predict_output_format(),
         output_quality: int = optimise_images.predict_output_quality(),
