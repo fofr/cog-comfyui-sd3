@@ -105,6 +105,7 @@ class Predictor(BasePredictor):
         aspect_ratio: str = Input(
             choices=["1:1", "16:9", "21:9", "2:3", "3:2", "4:5", "5:4", "9:16", "9:21"],
             default="1:1",
+            description="The aspect ratio of your output image. This value is ignored if you are using an input image.",
         ),
         cfg: float = Input(
             description="The guidance scale tells the model how similar the output should be to the prompt.",
