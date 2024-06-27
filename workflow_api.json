@@ -1,7 +1,7 @@
 {
   "6": {
     "inputs": {
-      "text": "",
+      "text": "a landscape photo",
       "clip": [
         "252",
         1
@@ -23,62 +23,6 @@
     "class_type": "ModelSamplingSD3",
     "_meta": {
       "title": "ModelSamplingSD3"
-    }
-  },
-  "67": {
-    "inputs": {
-      "conditioning": [
-        "71",
-        0
-      ]
-    },
-    "class_type": "ConditioningZeroOut",
-    "_meta": {
-      "title": "ConditioningZeroOut"
-    }
-  },
-  "68": {
-    "inputs": {
-      "start": 0.1,
-      "end": 1,
-      "conditioning": [
-        "67",
-        0
-      ]
-    },
-    "class_type": "ConditioningSetTimestepRange",
-    "_meta": {
-      "title": "ConditioningSetTimestepRange"
-    }
-  },
-  "69": {
-    "inputs": {
-      "conditioning_1": [
-        "68",
-        0
-      ],
-      "conditioning_2": [
-        "70",
-        0
-      ]
-    },
-    "class_type": "ConditioningCombine",
-    "_meta": {
-      "title": "Conditioning (Combine)"
-    }
-  },
-  "70": {
-    "inputs": {
-      "start": 0,
-      "end": 0.1,
-      "conditioning": [
-        "71",
-        0
-      ]
-    },
-    "class_type": "ConditioningSetTimestepRange",
-    "_meta": {
-      "title": "ConditioningSetTimestepRange"
     }
   },
   "71": {
@@ -132,12 +76,12 @@
   },
   "271": {
     "inputs": {
-      "seed": 130541990665798,
+      "seed": 865082229759995,
       "steps": 28,
       "cfg": 4.5,
       "sampler_name": "dpmpp_2m",
       "scheduler": "sgm_uniform",
-      "denoise": 1,
+      "denoise": 1.0,
       "model": [
         "13",
         0
@@ -147,11 +91,11 @@
         0
       ],
       "negative": [
-        "69",
+        "274",
         0
       ],
       "latent_image": [
-        "135",
+        "278",
         0
       ]
     },
@@ -171,6 +115,63 @@
     "class_type": "SaveImage",
     "_meta": {
       "title": "Save Image"
+    }
+  },
+  "274": {
+    "inputs": {
+      "end": 0.1,
+      "conditioning": [
+        "71",
+        0
+      ]
+    },
+    "class_type": "SD3NegativeConditioning+",
+    "_meta": {
+      "title": "🔧 SD3 Negative Conditioning"
+    }
+  },
+  "275": {
+    "inputs": {
+      "image": "example.png",
+      "upload": "image"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "277": {
+    "inputs": {
+      "width": 1024,
+      "height": 1024,
+      "interpolation": "lanczos",
+      "method": "keep proportion",
+      "condition": "always",
+      "multiple_of": 64,
+      "image": [
+        "275",
+        0
+      ]
+    },
+    "class_type": "ImageResize+",
+    "_meta": {
+      "title": "🔧 Image Resize"
+    }
+  },
+  "278": {
+    "inputs": {
+      "pixels": [
+        "277",
+        0
+      ],
+      "vae": [
+        "252",
+        2
+      ]
+    },
+    "class_type": "VAEEncode",
+    "_meta": {
+      "title": "VAE Encode"
     }
   }
 }
