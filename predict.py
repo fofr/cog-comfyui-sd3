@@ -67,6 +67,7 @@ class Predictor(BasePredictor):
 
         sampler = workflow["271"]["inputs"]
         sampler["seed"] = kwargs["seed"]
+        sampler["steps"] = kwargs["steps"]
         sampler["cfg"] = kwargs["cfg"]
 
         if kwargs["image_filename"]:
@@ -121,6 +122,12 @@ class Predictor(BasePredictor):
             le=1.0,
             default=0.85,
         ),
+        steps: int = Input(
+            description="Number of steps to run the sampler for.",
+            ge=1,
+            le=28,
+            default=28,
+        ),
         output_format: str = optimise_images.predict_output_format(),
         output_quality: int = optimise_images.predict_output_quality(),
         seed: int = seed_helper.predict_seed(),
@@ -155,6 +162,7 @@ class Predictor(BasePredictor):
             height=height,
             prompt_strength=prompt_strength,
             image_filename=image_filename,
+            steps=steps,
         )
 
         self.comfyUI.connect()
