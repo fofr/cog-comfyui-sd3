@@ -169,6 +169,10 @@ class Predictor(BasePredictor):
         self.comfyUI.connect()
         self.comfyUI.run_workflow(workflow)
 
+        files = self.comfyUI.get_files(OUTPUT_DIR)
+        if len(files) == 0:
+            raise Exception("No output")
+
         return optimise_images.optimise_image_files(
-            output_format, output_quality, self.comfyUI.get_files(OUTPUT_DIR)
+            output_format, output_quality, files
         )
