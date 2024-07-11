@@ -44,6 +44,11 @@ class Predictor(BasePredictor):
             "https://weights.replicate.delivery/default/comfy-ui/checkpoints/sd3_medium_incl_clips_t5xxlfp8.safetensors.tar",
             "ComfyUI/models/checkpoints",
         )
+        weights_downloader.download(
+            "sd3_medium_DYN_A100-b-1-1-1-h-512-1536-1024-w-512-1536-1024.engine",
+            "https://weights.replicate.delivery/default/comfy-ui/tensorrt/sd3_medium_DYN_A100-b-1-1-1-h-512-1536-1024-w-512-1536-1024.engine.tar",
+            "ComfyUI/models/tensorrt",
+        )
 
     def handle_input_file(
         self,
