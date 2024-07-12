@@ -37,6 +37,7 @@ class Predictor(BasePredictor):
     def setup(self):
         self.comfyUI = ComfyUI("127.0.0.1:8188")
         self.comfyUI.start_server(OUTPUT_DIR, INPUT_DIR)
+        self.engine = self.get_engine()
 
         weights_downloader = WeightsDownloader()
         weights_downloader.download(
@@ -44,6 +45,26 @@ class Predictor(BasePredictor):
             "https://weights.replicate.delivery/default/comfy-ui/checkpoints/sd3_medium_incl_clips_t5xxlfp8.safetensors.tar",
             "ComfyUI/models/checkpoints",
         )
+        weights_downloader.download(
+            self.engine,
+            f"https://weights.replicate.delivery/default/comfy-ui/tensorrt/{self.engine}.tar",
+            "ComfyUI/models/tensorrt",
+        )
+
+    def get_engine(self):
+        gpu_name = (
+            os.popen("nvidia-smi --query-gpu=name --format=csv,noheader,nounits")
+            .read()
+            .strip()
+        )
+
+        if "A100" in gpu_name:
+            return "sd3_medium_DYN_A100-b-1-1-1-h-512-1536-1024-w-512-1536-1024.engine"
+
+        if "H100" in gpu_name:
+            return "sd3_medium_DYN_H100-b-1-1-1-h-512-1536-1024-w-512-1536-1024.engine"
+
+        return "sd3_medium_DYN_A40-b-1-1-1-h-512-1536-1024-w-512-1536-1024.engine"
 
     def handle_input_file(
         self,
@@ -58,6 +79,9 @@ class Predictor(BasePredictor):
 
         negative_prompt = workflow["71"]["inputs"]
         negative_prompt["text"] = kwargs["negative_prompt"]
+
+        engine_loader = workflow["279"]["inputs"]
+        engine_loader["unet_name"] = self.engine
 
         sampler = workflow["271"]["inputs"]
         sampler["seed"] = kwargs["seed"]

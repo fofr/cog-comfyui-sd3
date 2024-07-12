@@ -2,5 +2,9 @@
   {
     "repo": "https://github.com/cubiq/ComfyUI_essentials",
     "commit": "5f1fc52"
+  },
+  {
+    "repo": "https://github.com/comfyanonymous/ComfyUI_TensorRT",
+    "commit": "a9a6923"
   }
 ]

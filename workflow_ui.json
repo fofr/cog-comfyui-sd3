@@ -1,6 +1,6 @@
 {
-  "last_node_id": 278,
-  "last_link_id": 25,
+  "last_node_id": 279,
+  "last_link_id": 26,
   "nodes": [
     {
       "id": 13,
@@ -14,13 +14,13 @@
         "1": 58
       },
       "flags": {},
-      "order": 3,
+      "order": 7,
       "mode": 0,
       "inputs": [
         {
           "name": "model",
           "type": "MODEL",
-          "link": 2
+          "link": 26
         }
       ],
       "outputs": [
@@ -52,7 +52,7 @@
         "1": 46
       },
       "flags": {},
-      "order": 10,
+      "order": 11,
       "mode": 0,
       "inputs": [
         {
@@ -132,7 +132,7 @@
         "1": 58
       },
       "flags": {},
-      "order": 7,
+      "order": 8,
       "mode": 0,
       "inputs": [
         {
@@ -208,9 +208,7 @@
         {
           "name": "MODEL",
           "type": "MODEL",
-          "links": [
-            2
-          ],
+          "links": [],
           "shape": 3
         },
         {
@@ -252,7 +250,7 @@
         "1": 46
       },
       "flags": {},
-      "order": 8,
+      "order": 9,
       "mode": 0,
       "inputs": [
         {
@@ -344,12 +342,12 @@
         3017.4000244140625,
         130
       ],
-      "size": [
-        385.59610187149383,
-        404.2772626814643
-      ],
+      "size": {
+        "0": 385.5960998535156,
+        "1": 404.2772521972656
+      },
       "flags": {},
-      "order": 11,
+      "order": 12,
       "mode": 0,
       "inputs": [
         {
@@ -375,7 +373,7 @@
         "1": 262
       },
       "flags": {},
-      "order": 9,
+      "order": 10,
       "mode": 0,
       "inputs": [
         {
@@ -467,10 +465,10 @@
         84,
         -282
       ],
-      "size": [
-        315,
-        314
-      ],
+      "size": {
+        "0": 315,
+        "1": 314
+      },
       "flags": {},
       "order": 2,
       "mode": 0,
@@ -498,6 +496,39 @@
         "example.png",
         "image"
       ]
+    },
+    {
+      "id": 279,
+      "type": "TensorRTLoader",
+      "pos": [
+        96,
+        521
+      ],
+      "size": {
+        "0": 315,
+        "1": 82
+      },
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            26
+          ],
+          "shape": 3,
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "TensorRTLoader"
+      },
+      "widgets_values": [
+        "sd3_medium_DYN_A100-b-1-1-1-h-512-1536-1024-w-512-1536-1024.engine",
+        "sd3"
+      ]
     }
   ],
   "links": [
@@ -508,14 +539,6 @@
       6,
       0,
       "CLIP"
-    ],
-    [
-      2,
-      252,
-      0,
-      13,
-      0,
-      "MODEL"
     ],
     [
       8,
@@ -612,17 +635,25 @@
       271,
       3,
       "LATENT"
+    ],
+    [
+      26,
+      279,
+      0,
+      13,
+      0,
+      "MODEL"
     ]
   ],
   "groups": [],
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.7627768444385465,
-      "offset": [
-        -255.8613634251683,
-        311.4773967790655
-      ]
+      "scale": 0.5644739300537774,
+      "offset": {
+        "0": 390.6913757324219,
+        "1": 641.0562133789062
+      }
     }
   },
   "version": 0.4
