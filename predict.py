@@ -11,6 +11,7 @@ from cog import BasePredictor, Input, Path
 from comfyui import ComfyUI
 from cog_model_helpers import optimise_images
 from cog_model_helpers import seed as seed_helper
+from cog_model_helpers import avif as avif_helper
 from weights_downloader import WeightsDownloader
 
 OUTPUT_DIR = "/tmp/outputs"
@@ -166,6 +167,9 @@ class Predictor(BasePredictor):
 
         if image:
             file_extension = os.path.splitext(image)[1].lower()
+            if file_extension == ".avif":
+                image, file_extension = avif_helper.handle_avif_inputs(image)
+
             image_filename = f"input{file_extension}"
             self.handle_input_file(image, image_filename)
         else:
